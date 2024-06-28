@@ -2,6 +2,7 @@
 This is a command line program that enables simple
 manipulation of single-channel .wav audio files. I wrote this originally as a single function to alter amplitude,
 but decided to add more pieces as I enjoyed working on it.
+![View](https://github.com/connormajewski/Command-Line-Mono-Audio-File-Editor/assets/171502061/3d9abe4a-c8d7-48c8-9633-3ac78b373bff)
 
 ## Compilation and Running 
 This program was compiled and run using Cygwin. As such, the makefile is currently 
