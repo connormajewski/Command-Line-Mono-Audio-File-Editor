@@ -2,6 +2,8 @@
 This is a command line program that enables simple
 manipulation of single-channel .wav audio files. I wrote this originally as a single function to alter amplitude,
 but decided to add more pieces as I enjoyed working on it.
+![Menu](https://github.com/connormajewski/Command-Line-Mono-Audio-File-Editor/assets/171502061/e61a9603-a113-494b-aa28-802a1d25e4eb)
+
 ![View](https://github.com/connormajewski/Command-Line-Mono-Audio-File-Editor/assets/171502061/3d9abe4a-c8d7-48c8-9633-3ac78b373bff)
 
 ## Compilation and Running 
