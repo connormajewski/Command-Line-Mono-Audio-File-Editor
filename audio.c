@@ -113,6 +113,8 @@ void load(){
 
     else{
 
+        //printf("SECTIONS: %d\nSEEKABLE: %d\n", sfinfo.sections, sfinfo.seekable);
+
         duration =(float) sfinfo.frames / sfinfo.samplerate;
 
         nsamples = sfinfo.channels * NFRAMES;
@@ -219,17 +221,17 @@ void effect(){
 
             }
 
-            // INCOMPLETE.
+                // INCOMPLETE.
+
+            else if(!strcmp(command, "cut")){
+
+                cut(start, end);
+
+            }
 
 //            else if(!strcmp(command, "speed")){
 //
 //                speed(start, end);
-//
-//            }
-//
-//            else if(!strcmp(command, "cut")){
-//
-//                cut(start, end);
 //
 //            }
 //
@@ -402,42 +404,56 @@ void cut(float start, float end){
 
     reset();
 
-    printf("%ld\n", sfinfo.frames / 2);
+    // Create new SNDFILE and SF_INFO for temp file.
 
-    speedBuffer = (float *) calloc((sfinfo.frames / 2), sizeof(float));
-
-    if(!speedBuffer) printf("ERROR\n");
-
-    // Test file.
+    SF_INFO outfilesfinfo;
 
     SNDFILE * out;
 
-    if ((out = sf_open("tmp.wav", SFM_WRITE, &sfinfo)) != NULL)
-    {
+    float outfileDuration;
 
-        // Shift all data from left of endFrame to startFrame position, overwriting section to be deleted.
+    printf("START: %d\nEND: %d\n", startFrame, endFrame);
 
-        /*
-         * for i in [endFrame, end of file]
-         *  buffer[i] = buffer[i + (endFrame - startFrame)]
-         *  write buffer to file
-         */
+    outfilesfinfo = sfinfo;
 
+    outfileDuration = (float) outfilesfinfo.frames / outfilesfinfo.samplerate;
+
+    printf("LENGTH OF NEW FILE AFTER CUT: %.2f seconds.\nFRAMES: %ld\n", outfileDuration, outfilesfinfo.frames);
+
+    if ((out = sf_open("tmp.wav", SFM_WRITE, &outfilesfinfo)) != NULL) {
+
+        printf("FILE MADE.\n");
+
+        sf_seek(out, 0.0, 0);
+
+        sum = 0;
+
+        outfilesfinfo.frames = sfinfo.frames - (endFrame - startFrame);
+
+        //printf("\n%d : %ld\nTESTTESTTSE: %d\n\n", sum, outfilesfinfo.frames, sum < outfilesfinfo.frames);
+
+        while(((readcount = sf_read_float(infile, buffer, nsamples)) > 0) && sum < startFrame){
+
+            sum += readcount;
+
+            sf_write_float(out, buffer, readcount);
+
+        }
+
+        sf_seek(infile, endFrame, 0);
+
+        while(((readcount = sf_read_float(infile, buffer, nsamples)) > 0) && sum < outfilesfinfo.frames){
+
+            sum += readcount;
+
+            sf_write_float(out, buffer, readcount);
+
+        }
+
+        printf("FRAMES WRITTEN: %d\n", sum);
+
+        sf_close(out);
     }
-
-    else {
-
-        puts(sf_strerror(NULL));
-
-    }
-
-    sf_close(out);
-
-    printf("Press any key to continue.\n");
-
-    printf("FINISHED\n");
-
-    fgetc(stdin);
 
 }
 
@@ -600,6 +616,8 @@ void copy(){
 
                             }
 
+                            sf_write_float(outfile, buffer, readcount);
+
 
                         }
 
@@ -760,7 +778,7 @@ int main(int argc, char *argv[])
 
         printf("%s\n16-bit Mono Audio File Editor.\n\n%s\n\nCommands\nquit, q - exit the program.\nload - load a 16-bit signed PCM mono audio file for editing."
                "\nunload - unload currently loaded file.\ninfo - get info on file if one is currently loaded.\ncopy - create a copy of the currently loaded file."
-               "\neffect - apply effects to audio file.\nview - display current file waveform.\n%s\n", seperator, infilename != NULL ? infilename : "", seperator);
+               "\neffect - apply effects to audio file.\nview - display current file waveform.\n%s\n", seperator, infile != NULL ? infilename : "No file loaded", seperator);
 
         fgets(command, TEXT_BUFFER, stdin);
 
