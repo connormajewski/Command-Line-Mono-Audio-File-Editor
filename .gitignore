@@ -1,2 +1,4 @@
 .idea
 cmake-build-debug
+audio.exe
+tmp.wav
