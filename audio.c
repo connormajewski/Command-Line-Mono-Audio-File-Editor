@@ -420,15 +420,15 @@ void cut(float start, float end){
 
     printf("LENGTH OF NEW FILE AFTER CUT: %.2f seconds.\nFRAMES: %ld\n", outfileDuration, outfilesfinfo.frames);
 
-    if ((out = sf_open("tmp.wav", SFM_WRITE, &outfilesfinfo)) != NULL) {
+    if ((out = sf_open("tmp.wav", SFM_RDWR, &outfilesfinfo)) != NULL) {
+
+        outfilesfinfo.frames = sfinfo.frames - (endFrame - startFrame);
 
         printf("FILE MADE.\n");
 
         sf_seek(out, 0.0, 0);
 
         sum = 0;
-
-        outfilesfinfo.frames = sfinfo.frames - (endFrame - startFrame);
 
         //printf("\n%d : %ld\nTESTTESTTSE: %d\n\n", sum, outfilesfinfo.frames, sum < outfilesfinfo.frames);
 
@@ -442,7 +442,7 @@ void cut(float start, float end){
 
         sf_seek(infile, endFrame, 0);
 
-        while(((readcount = sf_read_float(infile, buffer, nsamples)) > 0) && sum < outfilesfinfo.frames){
+        while(((readcount = sf_read_float(infile, buffer, nsamples)) > 0) && sum < sfinfo.frames){
 
             sum += readcount;
 
@@ -450,9 +450,23 @@ void cut(float start, float end){
 
         }
 
-        printf("FRAMES WRITTEN: %d\n", sum);
+        sum = 0;
 
         sf_close(out);
+
+        if(rename("tmp.wav", infilename) != 0) {
+
+            printf("Error Modifying file.\n");
+
+        }
+
+        else {
+
+            printf("File has been cut.\n");
+
+        }
+
+
     }
 
 }
