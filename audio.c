@@ -60,33 +60,7 @@ void info(){
  * format to sfinfo, otherwise all calls to load() will fail.
  */
 
-void load(){
-
-    reset();
-
-    if(infile){
-
-        printf("This will replace the currently loaded file. Continue (y/n) ?\n");
-
-        fgets(confirmation, TEXT_BUFFER, stdin);
-
-        removeNewLine(confirmation);
-
-        if(!strcmp(confirmation, "n")){
-
-            printf("File loading cancelled.\nPress any key to continue.\n");
-
-            fgetc(stdin);
-
-        }
-
-    }
-
-    printf("Enter name of audio file to be opened:\n");
-
-    fgets(infilename, TEXT_BUFFER, stdin);
-
-    removeNewLine(infilename);
+void load(char * infilename){
 
     if ((infile = sf_open(infilename, SFM_RDWR, &sfinfo)) == NULL)
     {
@@ -113,8 +87,6 @@ void load(){
 
     else{
 
-        //printf("SECTIONS: %d\nSEEKABLE: %d\n", sfinfo.sections, sfinfo.seekable);
-
         duration =(float) sfinfo.frames / sfinfo.samplerate;
 
         nsamples = sfinfo.channels * NFRAMES;
@@ -126,10 +98,6 @@ void load(){
         printf("File successfully loaded.\n");
 
     }
-
-    printf("Press any key to continue.\n");
-
-    fgetc(stdin);
 
 }
 
@@ -462,6 +430,10 @@ void cut(float start, float end){
 
         else {
 
+            infile = NULL;
+
+            load(infilename);
+
             printf("File has been cut.\n");
 
         }
@@ -555,9 +527,8 @@ void delay(float start, float end){
 }
 
 /*
- * Function that copies the currently loaded file to a new file of the form 'Copy - <filename>'.
- * Note: This function does not load the copied file, only creates it. In order to use the created file,
- * it must be loaded through a call to load().
+ * Function that copies the currently loaded file to a new file of the form
+ * 'Copy - <filename>', then loads it to the editor.
  */
 
 void copy(){
@@ -624,18 +595,15 @@ void copy(){
 
                             sum += readcount;
 
-                            for(int i=0;i<NFRAMES;i++){
-
-                                buffer[i] = buffer[i];
-
-                            }
-
                             sf_write_float(outfile, buffer, readcount);
-
 
                         }
 
                         printf("%s has been successfully copied to %s\n", infilename, copyFileName);
+
+                        strcpy(infilename, copyFileName);
+
+                        load(copyFileName);
 
                     }
 
@@ -676,89 +644,99 @@ void waveform(){
 
     reset();
 
-    sum = 0;
+    if(infile){
 
-    sf_seek(infile, startFrame, 0);
+        sum = 0;
 
-    int range;
+        sf_seek(infile, startFrame, 0);
 
-    int j = 0;
+        int range;
 
-    int k = 0;
+        int j = 0;
 
-    int target = (int)((duration * (double) sfinfo.samplerate) / SCREEN_X);
+        int k = 0;
 
-    if(!waveformReset){
+        int target = (int)((duration * (double) sfinfo.samplerate) / SCREEN_X);
+
+        if(!waveformReset){
+
+//            for(int i=0;i<SCREEN_Y;i++){
+//
+//                for(int j=0;j<SCREEN_X;j++){
+//
+//                    waveformArray[i][j] = 0;
+//
+//                }
+//
+//            }
+
+            while(((readcount = sf_read_float(infile, buffer, nsamples)) > 0) && sum < (duration * (double) sfinfo.samplerate)){
+
+                sum += readcount;
+
+                for(int i=0;i<NFRAMES;i++){
+
+                    if(!(j % target)){
+
+                        // MODIFY TO FIND AVERAGE OF ALL FRAMES IN TARGET RANGE INSTEAD OF SELECTING ONE FRAME PER TARGET.
+
+                        range = ((buffer[i] * SCREEN_Y) < 0) ? (-(buffer[i] * SCREEN_Y) / 2) : ((buffer[i] * SCREEN_Y) / 2);
+
+                        for(int l=0;l<SCREEN_Y;l++){
+
+                            waveformArray[l][k] = ((l <= 32 - range) || (l >= 32 + range)) ? ' ' : '|';
+
+                        }
+
+                        k++;
+
+                    }
+
+                    j++;
+
+                }
+
+            }
+
+        }
+
+        waveformReset = 1;
+
+        reset();
+
+        waveformArray[1][0] = '1';
+        waveformArray[16][0] = '/';
+        waveformArray[32][0] = '0';
+        waveformArray[48][0] = '/';
+        waveformArray[63][0] = '1';
 
         for(int i=0;i<SCREEN_Y;i++){
 
             for(int j=0;j<SCREEN_X;j++){
 
-                waveformArray[i][j] = 0;
+                printf("%c", waveformArray[i][j]);
 
             }
 
-        }
-
-        while(((readcount = sf_read_float(infile, buffer, nsamples)) > 0) && sum < (duration * (double) sfinfo.samplerate)){
-
-            sum += readcount;
-
-            for(int i=0;i<NFRAMES;i++){
-
-                if(!(j % target)){
-
-                    // MODIFY TO FIND AVERAGE OF ALL FRAMES IN TARGET RANGE INSTEAD OF SELECTING ONE FRAME PER TARGET.
-
-                    range = ((buffer[i] * SCREEN_Y) < 0) ? (-(buffer[i] * SCREEN_Y) / 2) : ((buffer[i] * SCREEN_Y) / 2);
-
-                    for(int l=0;l<SCREEN_Y;l++){
-
-                        waveformArray[l][k] = ((l <= 32 - range) || (l >= 32 + range)) ? ' ' : '|';
-
-                    }
-
-                    k++;
-
-                }
-
-                j++;
-
-            }
-
-        }
-
-    }
-
-    waveformReset = 1;
-
-    reset();
-
-    waveformArray[1][0] = '1';
-    waveformArray[16][0] = '/';
-    waveformArray[32][0] = '0';
-    waveformArray[48][0] = '/';
-    waveformArray[63][0] = '1';
-
-    for(int i=0;i<SCREEN_Y;i++){
-
-        for(int j=0;j<SCREEN_X;j++){
-
-            printf("%c", waveformArray[i][j]);
+            printf("\n");
 
         }
 
         printf("\n");
 
+        for(int i=0;i<SCREEN_X - 4;i++){
+
+            if(!(i % (SCREEN_X / 4))) printf("%.2fs", ((double)i / (double)SCREEN_X) * (duration));
+
+            else printf(" ");
+
+        }
+
     }
 
-    printf("\n");
+    else {
 
-    for(int i=0;i<SCREEN_X - 4;i++){
-
-        if(!(i % (SCREEN_X / 4))) printf("%.2fs", ((double)i / (double)SCREEN_X) * (duration));
-
-        else printf(" ");
+        printf("No file loaded.\n");
 
     }
 
@@ -813,7 +791,39 @@ int main(int argc, char *argv[])
 
         else if(!strcmp(command, "load")){
 
-            load();
+            reset();
+
+            if(infile){
+
+                printf("This will replace the currently loaded file. Continue (y/n) ?\n");
+
+                fgets(confirmation, TEXT_BUFFER, stdin);
+
+                removeNewLine(confirmation);
+
+                if(!strcmp(confirmation, "n")){
+
+                    printf("File loading cancelled.\n");
+
+                }
+
+            }
+
+            else {
+
+                printf("Enter name of audio file to be opened:\n");
+
+                fgets(infilename, TEXT_BUFFER, stdin);
+
+                removeNewLine(infilename);
+
+                load(infilename);
+
+            }
+
+            printf("Press any key to continue.\n");
+
+            getc(stdin);
 
         }
 

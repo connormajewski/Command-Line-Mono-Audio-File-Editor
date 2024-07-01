@@ -188,7 +188,7 @@ void copy();
 
 // Loads file to be used by the program.
 
-void load();
+void load(char * infilename);
 
 // Unloads previously loaded file.
 
