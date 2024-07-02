@@ -1,4 +1,51 @@
 #include "audio.h"
+#include "test.h"
+
+SF_INFO sfinfo = {
+
+        .samplerate = 0,
+        .frames = 0,
+        .channels = 0,
+        .format = SF_FORMAT_WAV | SF_FORMAT_PCM_16,
+        .sections = 0,
+        .seekable = 1
+};
+
+char * seperator = "------------------------------------------------------------";
+
+char command[TEXT_BUFFER] = "";
+
+char infilename[TEXT_BUFFER] = "";
+
+char confirmation[TEXT_BUFFER] = "";
+
+SNDFILE * infile = NULL;
+
+SNDFILE * outfile = NULL;
+
+int waveformReset = 0;
+
+long nsamples = 0;
+
+long readcount = 0;
+
+float * buffer = NULL;
+
+float duration = 0.00;
+
+int startFrame = 0;
+
+int endFrame = 0;
+
+int sum = 0;
+
+enum{
+    SUCCESS,
+    WRONG_FORMAT,
+    WRONG_CHANNELS,
+    NONEXISTENT_FILE,
+    NO_LOADED_FILE
+};
 
 /*
  * This is a function that clears the terminal. It acts a "refresh" after running other functions,
@@ -44,10 +91,6 @@ void info(){
 
     }
 
-    printf("Press any key to continue.\n");
-
-    fgetc(stdin);
-
 }
 
 /*
@@ -60,12 +103,14 @@ void info(){
  * format to sfinfo, otherwise all calls to load() will fail.
  */
 
-void load(char * infilename){
+int load(char * infilename){
 
     if ((infile = sf_open(infilename, SFM_RDWR, &sfinfo)) == NULL)
     {
 
         printf("File could not be opened.\n");
+
+        return NONEXISTENT_FILE;
 
     }
 
@@ -75,6 +120,8 @@ void load(char * infilename){
 
         free(infile);
 
+        return WRONG_CHANNELS;
+
     }
 
     else if(sf_extension(infilename) != SF_FORMAT_WAV){
@@ -82,6 +129,8 @@ void load(char * infilename){
         printf("File must be .wav.\n");
 
         free(infile);
+
+        return WRONG_FORMAT;
 
     }
 
@@ -91,11 +140,11 @@ void load(char * infilename){
 
         nsamples = sfinfo.channels * NFRAMES;
 
-        printf("SAMPLES: %ld\n", nsamples);
-
         waveformReset = 0;
 
         printf("File successfully loaded.\n");
+
+        return SUCCESS;
 
     }
 
@@ -108,7 +157,7 @@ void load(char * infilename){
  * leftover data.
  */
 
-void unload(){
+int unload(){
 
     reset();
 
@@ -128,11 +177,15 @@ void unload(){
 
         printf("File has been unloaded.\nPress any key to continue.\n");
 
+        return SUCCESS;
+
     }
 
     else {
 
         printf("No audio file has been loaded.\nPress any key to continue.\n");
+
+        return NO_LOADED_FILE;
 
     }
 
@@ -152,6 +205,18 @@ void unload(){
 
 void effect(){
 
+    // Stores start time of interval of effect. Must be between 0.00 and duration, and cannot be greater than end.
+
+    float start;
+
+    // End time of interval of effect. Must be between 0.00 and duration, and cannot be less than start.
+
+    float end;
+
+    // Char array to store start and end durations from user input. Used in effect().
+
+    char durationInterval[TEXT_BUFFER];
+
     reset();
 
     if(infile){
@@ -166,11 +231,11 @@ void effect(){
 
         printf("Enter start and end time (-1 -1 for entire track.): ");
 
-        fgets(dur, TEXT_BUFFER, stdin);
+        fgets(durationInterval, TEXT_BUFFER, stdin);
 
-        removeNewLine(dur);
+        removeNewLine(durationInterval);
 
-        sscanf(dur, "%f %f", &start, &end);
+        sscanf(durationInterval, "%f %f", &start, &end);
 
         if(((start < end) && (start >= 0.00) && (end <= duration)) || (start == -1 && end == -1)){
 
@@ -336,6 +401,10 @@ void fade(float start, float end){
 
 void speed(float start, float end){
 
+    // Buffer to store remaining frames after removal.
+
+    float *speedBuffer;
+
     sum = 0;
 
     speedBuffer = (float *) calloc(sfinfo.frames / 2, sizeof(float));
@@ -454,6 +523,26 @@ void cut(float start, float end){
 
 void delay(float start, float end){
 
+    // Stores delay samples.
+
+    int delaySamples;
+
+    // Stores current spot in delayBuffer.
+
+    int delayBufferIndex;
+
+    // Length of delay in seconds. Must be a positive number.
+
+    float delayValue;
+
+    // Strength of delay. Must be between 0.00 and 1.00 inclusive.
+
+    float decayValue;
+
+    // Stores delay sample.
+
+    float delaySample;
+
     printf("Enter delay amount in seconds.\n");
 
     fgets(command, TEXT_BUFFER, stdin);
@@ -471,6 +560,10 @@ void delay(float start, float end){
     decayValue = atof(command);
 
     if((delayValue > 0.0) && (decayValue >= 0.0 && decayValue <= 1.00)){
+
+        // Buffer to store frames for delay effect.
+
+        float *delayBuffer;
 
         // Needs to be fixed.
 
@@ -627,10 +720,6 @@ void copy(){
 
     }
 
-    printf("Press any key to continue.\n");
-
-    fgetc(stdin);
-
 }
 
 /*
@@ -641,6 +730,10 @@ void copy(){
  */
 
 void waveform(){
+
+    // 2D character array storing graphical representation of loaded file. Populated and used in waveform().
+
+    int waveformArray[SCREEN_Y][SCREEN_X];
 
     reset();
 
@@ -740,8 +833,6 @@ void waveform(){
 
     }
 
-    getc(stdin);
-
 }
 
 /*
@@ -752,108 +843,131 @@ void waveform(){
 int main(int argc, char *argv[])
 {
 
-    if (argc != ARG_NARGS)
+    if (argc != ARG_NARGS - 1 && argc != ARG_NARGS)
     {
         printf("16-bit Mono Audio File Editor.\n");
-        printf("Too many arguments.\n");
-        printf("Usage: %s\n", argv[ARG_PROGNAME]);
+        printf("Usage: %s (-t)\n", argv[ARG_PROGNAME]);
         return 1;
     }
 
-    memset(&sfinfo, 0, sizeof(sfinfo));
+    if(argv[ARG_TEST]){
 
-    buffer = (float *) calloc(NFRAMES, sizeof(float));
+        audio_tests();
 
-    while(1){
+        return 0;
 
-        reset();
+    }
 
-        printf("%s\n16-bit Mono Audio File Editor.\n\n%s\n\nCommands\nquit, q - exit the program.\nload - load a 16-bit signed PCM mono audio file for editing."
-               "\nunload - unload currently loaded file.\ninfo - get info on file if one is currently loaded.\ncopy - create a copy of the currently loaded file."
-               "\neffect - apply effects to audio file.\nview - display current file waveform.\n%s\n", seperator, infile != NULL ? infilename : "No file loaded", seperator);
+    else {
 
-        fgets(command, TEXT_BUFFER, stdin);
+        buffer = (float *) calloc(NFRAMES, sizeof(float));
 
-        removeNewLine(command);
-
-        if(!strcmp(command, "q") || !strcmp(command, "quit")){
-
-            if(infile){
-
-                unload(&buffer);
-
-            }
-
-            system("clear");
-            return 0;
-
-        }
-
-        else if(!strcmp(command, "load")){
+        while(1){
 
             reset();
 
-            if(infile){
+            printf("%s\n16-bit Mono Audio File Editor.\n\n%s\n\nCommands\nquit, q - exit the program.\nload - load a 16-bit signed PCM mono audio file for editing."
+                   "\nunload - unload currently loaded file.\ninfo - get info on file if one is currently loaded.\ncopy - create a copy of the currently loaded file."
+                   "\neffect - apply effects to audio file.\nview - display current file waveform.\n%s\n", seperator, infile != NULL ? infilename : "No file loaded", seperator);
 
-                printf("This will replace the currently loaded file. Continue (y/n) ?\n");
+            fgets(command, TEXT_BUFFER, stdin);
 
-                fgets(confirmation, TEXT_BUFFER, stdin);
+            removeNewLine(command);
 
-                removeNewLine(confirmation);
+            if(!strcmp(command, "q") || !strcmp(command, "quit")){
 
-                if(!strcmp(confirmation, "n")){
+                if(infile){
 
-                    printf("File loading cancelled.\n");
+                    unload(&buffer);
+
+                }
+
+                system("clear");
+                return 0;
+
+            }
+
+            else if(!strcmp(command, "load")){
+
+                reset();
+
+                if(infile){
+
+                    printf("This will replace the currently loaded file. Continue (y/n) ?\n");
+
+                    fgets(confirmation, TEXT_BUFFER, stdin);
+
+                    removeNewLine(confirmation);
+
+                    if(!strcmp(confirmation, "n")){
+
+                        printf("File loading cancelled.\n");
+
+                    }
+
+                    else {
+
+
+                        printf("Enter name of audio file to be opened:\n");
+
+                        fgets(infilename, TEXT_BUFFER, stdin);
+
+                        removeNewLine(infilename);
+
+                        load(infilename);
+
+                    }
+
+                }
+
+                else {
+
+
+                    printf("Enter name of audio file to be opened:\n");
+
+                    fgets(infilename, TEXT_BUFFER, stdin);
+
+                    removeNewLine(infilename);
+
+                    load(infilename);
 
                 }
 
             }
 
-            else {
+            else if(!strcmp(command, "unload")){
 
-                printf("Enter name of audio file to be opened:\n");
+                unload();
 
-                fgets(infilename, TEXT_BUFFER, stdin);
+            }
 
-                removeNewLine(infilename);
+            else if(!strcmp(command, "copy")){
 
-                load(infilename);
+                copy();
+
+            }
+
+            else if(!strcmp(command, "info")){
+
+                info();
+
+            }
+
+            else if(!strcmp(command, "effect")){
+
+                effect();
+
+            }
+
+            else if(!strcmp(command, "view")){
+
+                waveform();
 
             }
 
             printf("Press any key to continue.\n");
 
             getc(stdin);
-
-        }
-
-        else if(!strcmp(command, "unload")){
-
-            unload();
-
-        }
-
-        else if(!strcmp(command, "copy")){
-
-            copy();
-
-        }
-
-        else if(!strcmp(command, "info")){
-
-            info();
-
-        }
-
-        else if(!strcmp(command, "effect")){
-
-            effect();
-
-        }
-
-        else if(!strcmp(command, "view")){
-
-            waveform();
 
         }
 
@@ -928,3 +1042,5 @@ int sf_extension(const char *filename)
         return -1; // extension is not wav, aiff, or aif
     }
 }
+
+

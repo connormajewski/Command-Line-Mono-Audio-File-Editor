@@ -24,131 +24,83 @@
 enum
 {
     ARG_PROGNAME,
+    ARG_TEST,
     ARG_NARGS
+};
+
+enum
+{
+    PASS,
+    FAIL
 };
 
 // Seperator to frame menu items.
 
-char * seperator = "------------------------------------------------------------";
+extern char * seperator;
 
 // Char array holding user input. This is the main array to hold almost all input from the effects() function
 // and its calling functions.
 
-char command[TEXT_BUFFER];
+extern char command[TEXT_BUFFER];
 
 // Char array to store the name of the loaded file. Used in load(), unload(), info(), and copy().
 
-char infilename[TEXT_BUFFER];
+extern char infilename[TEXT_BUFFER];
 
 // Char array to store (y/n) from user. Used in load() and copy().
 
-char confirmation[TEXT_BUFFER];
-
-// Char array to store start and end durations from user input. Used in effect().
-
-char dur[TEXT_BUFFER];
+extern char confirmation[TEXT_BUFFER];
 
 // Pointer to loaded file. Every function call makes use of this pointer in some way or another.
 
-SNDFILE *infile = NULL;
+extern SNDFILE *infile;
 
 // Pointer to an output file. Used by copy().
 
-SNDFILE *outfile = NULL;
+extern SNDFILE *outfile;
 
 // Struct storing SNDFILE information. Elements accessed using sfinfo.<element>. Used in almost all functions.
 
-SF_INFO sfinfo;
-
-// 2D character array storing graphical representation of loaded file. Populated and used in waveform().
-
-int waveformArray[SCREEN_Y][SCREEN_X];
+extern SF_INFO sfinfo;
 
 // Flag tracking changes to loaded file when calling to waveform(). Eliminates excess accesses of waveFormArray
 // in waveform() when no changes have been made.
 
-int waveformReset;
-
-//int outfile_major_type;  // output major type in hex
+extern int waveformReset;
 
 // Number of samples. Value is set first in calls to load(), then additionally as needed.
 
-long nsamples;
+extern long nsamples;
 
 // stores number of frames read from calls to sf_read(). Should always return either NFRAMES or a number > 0 if successful.
 
-long readcount;
+extern long readcount;
 
 // Buffer to store frames pulled from sf_read(). Main
 
-float *buffer;
-
-// Buffer to store remaining frames after removal.
-
-float *speedBuffer;
-
-// Buffer to store frames for delay effect.
-
-float *delayBuffer;
-
-// Length of delay in seconds. Must be a positive number.
-
-float delayValue;
-
-// Strength of delay. Must be between 0.00 and 1.00 inclusive.
-
-float decayValue;
+extern float *buffer;
 
 // Duration of loaded file in seconds. Calculated in load and adjusted when needed.
 
-float duration;
-
-// Stores delay sample.
-
-float delaySample;
-
-// Stores start time of interval of effect. Must be between 0.00 and duration, and cannot be greater than end.
-
-float start;
-
-// End time of interval of effect. Must be between 0.00 and duration, and cannot be less than start.
-
-float end;
+extern float duration;
 
 // Starting frame of interval of effect, calculated by multiplying start by the sample rate.
 
-int startFrame;
+extern int startFrame;
 
 // End frame of interval of effect, calculated by multiplying end by the sample rate.
 
-int endFrame;
-
-// Number of channels of loaded file.
-
-int numberOfChannels;
-
-// Number of samples of loaded file. Used to determine duration.
-
-int numberOfSamples;
-
-// Stores current spot in delayBuffer.
-
-int delayBufferIndex;
-
-// Stores delay samples.
-
-int delaySamples;
-
-
-// Flag checking for input file validity.
-
-//int isValidFile;
+extern int endFrame;
 
 // Tracks number of frames read when iterating through file using sf_read().
 
-int sum;
+extern int sum;
 
-// Note: A more detailed explanation of each function can be found in audio.c.
+
+/*
+ * Declarations for main program functions.
+ */
+
 
 // Prints file info, including name, duration, and type.
 
@@ -188,11 +140,11 @@ void copy();
 
 // Loads file to be used by the program.
 
-void load(char * infilename);
+extern int load(char * infilename);
 
 // Unloads previously loaded file.
 
-void unload();
+int unload();
 
 // Function to display representation of audio file to screen.
 
@@ -205,4 +157,5 @@ void reset();
 // Helper function to remove newlines from user input.
 
 void removeNewLine();
+
 
